@@ -1,0 +1,11 @@
+#!/bin/bash
+set -e
+
+if ! podman network exists stoat_default; then
+  sleep 5
+  exit 1
+fi
+
+cd /srv/stoat-admin
+exec podman compose up 2>&1
+

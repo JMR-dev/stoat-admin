@@ -114,11 +114,11 @@ Create `api/src/db/mongo.ts`. Export a function `connectMongo()` that creates a 
 
 ```typescript
 // Each function returns a typed Collection handle
-accounts()       // revolt.accounts
-users()          // revolt.users
-sessions()       // revolt.sessions
-invites()        // revolt.invites
-safetyStrikes()  // revolt.safety_strikes
+accounts(); // revolt.accounts
+users(); // revolt.users
+sessions(); // revolt.sessions
+invites(); // revolt.invites
+safetyStrikes(); // revolt.safety_strikes
 ```
 
 Define TypeScript interfaces for each collection's document shape matching the types in the design doc. Place these in `api/src/db/types.ts`. Only include the fields the admin dashboard reads or writes — do not attempt to type the entire Revolt schema.
@@ -205,6 +205,7 @@ Create `api/src/routes/invites.ts`. Implement an Express Router. All routes requ
 `POST /api/invites`: Accept `{ email, expiresInHours?: number }` in the request body. Validate with Zod (email must be a valid email format).
 
 Implementation steps, in order:
+
 1. Generate a 12-character alphanumeric code using `nanoid` with a custom alphabet (`0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz`).
 2. Compute `expires_at` as an ISO 8601 string if `expiresInHours` was provided, otherwise null.
 3. Insert `{ _id: code }` into MongoDB `revolt.invites`.
@@ -241,21 +242,21 @@ Create `api/src/routes/users.ts`. Implement an Express Router. All routes requir
 The join between `users` and `accounts` is by `_id` (they share the same ULID). Since MongoDB doesn't have native joins, perform this as a `$lookup` aggregation or two sequential queries. The aggregation approach is preferred:
 
 ```typescript
-db.collection('users').aggregate([
+db.collection("users").aggregate([
   { $match: matchFilter },
   { $skip: (page - 1) * limit },
   { $limit: limit },
   {
     $lookup: {
-      from: 'accounts',
-      localField: '_id',
-      foreignField: '_id',
-      as: 'account',
+      from: "accounts",
+      localField: "_id",
+      foreignField: "_id",
+      as: "account",
       pipeline: [{ $project: { email: 1, disabled: 1, verification: 1 } }]
     }
   },
-  { $unwind: { path: '$account', preserveNullAndEmptyArrays: true } }
-])
+  { $unwind: { path: "$account", preserveNullAndEmptyArrays: true } }
+]);
 ```
 
 `GET /api/users/:id`: Fetch a single user from `revolt.users` and their account from `revolt.accounts` by the same `_id`. Also fetch their strike history from `revolt.safety_strikes` where `user_id = id`. Return `200 { user, account, strikes }`. Return `404` if neither user nor account exists.
@@ -263,6 +264,7 @@ db.collection('users').aggregate([
 `POST /api/users/:id/ban`: Accept `{ reason: string }` in the request body. Validate with Zod (reason must be a non-empty string).
 
 Implementation steps, in order:
+
 1. Fetch the user from `revolt.users` to confirm they exist. Return `404` if not found.
 2. Check if the account is already disabled (`revolt.accounts.disabled === true`). If so, return `400 { error: "User is already banned" }`.
 3. Update `revolt.accounts`: set `disabled = true` where `_id = id`.
@@ -275,6 +277,7 @@ Implementation steps, in order:
 `POST /api/users/:id/unban`: No request body required.
 
 Implementation steps:
+
 1. Fetch the account from `revolt.accounts`. Return `404` if not found.
 2. Check that `disabled === true`. If not, return `400 { error: "User is not banned" }`.
 3. Update `revolt.accounts`: set `disabled = false` where `_id = id`.
@@ -285,6 +288,7 @@ Implementation steps:
 `DELETE /api/users/:id`: Accept optional `{ reason?: string }` in the request body.
 
 Implementation steps:
+
 1. Fetch the user from `revolt.users`. Return `404` if not found.
 2. Update `revolt.accounts`: set `deletion = { status: "Scheduled", after: new Date().toISOString() }` where `_id = id`.
 3. Update `revolt.users`: set `flags` to `(currentFlags || 0) | 2` where `_id = id`.
@@ -299,6 +303,7 @@ Do not attempt to delete user data (messages, DMs, memberships) directly. Stoat'
 Create `api/src/routes/dashboard.ts`. Implement an Express Router. Requires auth.
 
 `GET /api/dashboard/stats`: Aggregate and return summary counts:
+
 1. Total users: `revolt.users.countDocuments({})`.
 2. Banned users: `revolt.users.countDocuments({ flags: { $bitsAllSet: 4 } })`.
 3. Pending invites: SQLite query `SELECT COUNT(*) FROM invite_records WHERE status = 'pending'`.
@@ -315,6 +320,7 @@ Return `200 { totalUsers, bannedUsers, pendingInvites, recentBans }`.
 Create `api/src/index.ts`. This is the main entry point.
 
 Startup sequence:
+
 1. Load environment variables (use a validation function with Zod to parse and validate all required env vars at startup — fail fast with a clear error message if any are missing).
 2. Connect to MongoDB via `connectMongo()`.
 3. Initialize SQLite (the import of `sqlite.ts` triggers table creation).
@@ -341,19 +347,22 @@ Create `web/src/lib/api.ts`. Export a configured fetch wrapper:
 ```typescript
 const API_BASE = import.meta.env.VITE_API_URL;
 
-export async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  options?: RequestInit
+): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
-    credentials: 'include',  // send session cookie
+    credentials: "include", // send session cookie
     headers: {
-      'Content-Type': 'application/json',
-      ...options?.headers,
-    },
+      "Content-Type": "application/json",
+      ...options?.headers
+    }
   });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    throw new ApiError(res.status, body.error || 'Request failed');
+    throw new ApiError(res.status, body.error || "Request failed");
   }
 
   return res.json();
@@ -537,7 +546,7 @@ Create `compose.yml` at the repo root. This is the generic, open-source-friendly
 networks:
   stoat:
     external: true
-    name: stoat_default  # Adjust to match your Stoat stack's network name
+    name: stoat_default # Adjust to match your Stoat stack's network name
 
 services:
   admin-api:
@@ -582,6 +591,7 @@ Create `compose.override.example.yml` with comments explaining common customizat
 Create example s6 service directory structures in a `deploy/s6/` directory at the repo root. These are reference files that users copy to their s6 scan directory (e.g., `/etc/s6-services/`). All `run` and `finish` scripts must be executable (`chmod +x`).
 
 **`deploy/s6/stoat-admin/run`:**
+
 ```bash
 #!/bin/bash
 set -e
@@ -601,6 +611,7 @@ exec podman compose up 2>&1
 The network check handles the race condition where s6 starts both stacks simultaneously. If `stoat_default` doesn't exist yet, the script sleeps briefly and exits non-zero. s6 restarts it, and it tries again. Once the network exists, it falls through to `exec podman compose up` which replaces the bash process with the podman process — exactly what s6 expects as a long-lived supervised process. The `exec` is critical: without it, bash stays resident as a parent between s6 and podman, and signals from s6 would hit bash instead of podman.
 
 **`deploy/s6/stoat-admin/finish`:**
+
 ```bash
 #!/bin/bash
 cd /srv/stoat-admin
@@ -610,6 +621,7 @@ podman compose down
 The `finish` script runs whenever `run` exits (whether normally or via `s6-svc -d`). It ensures containers are cleaned up rather than left orphaned. No `exec` needed here — this is a short-lived cleanup script, not a long-running process.
 
 **`deploy/s6/stoat-admin/log/run`:**
+
 ```bash
 #!/bin/bash
 exec s6-log -b -- T /var/log/s6/stoat-admin/
@@ -620,6 +632,7 @@ The `T` directive prefixes each line with a TAI64N timestamp. Logs for each stac
 Also create the equivalent Stoat stack service directory structure (`deploy/s6/stoat/`) with the same pattern, substituting the compose project path and removing the network check (the Stoat stack creates the network, it doesn't depend on it). Include both in the repo as reference examples, with a note that paths and network names must be adjusted for each deployment.
 
 **`deploy/s6/stoat/run`:**
+
 ```bash
 #!/bin/bash
 set -e
@@ -628,6 +641,7 @@ exec podman compose up 2>&1
 ```
 
 **`deploy/s6/stoat/finish`:**
+
 ```bash
 #!/bin/bash
 cd /srv/stoat
@@ -635,6 +649,7 @@ podman compose down
 ```
 
 **`deploy/s6/stoat/log/run`:**
+
 ```bash
 #!/bin/bash
 exec s6-log -b -- T /var/log/s6/stoat/
@@ -662,6 +677,7 @@ WantedBy=multi-user.target
 ```
 
 Document the required setup steps in the README:
+
 1. Install s6 on Ubuntu 24.04: `apt install s6`.
 2. Create the scan directory: `mkdir -p /etc/s6-services`.
 3. Create log output directories: `mkdir -p /var/log/s6/stoat /var/log/s6/stoat-admin`.
@@ -718,6 +734,7 @@ s6-svc -r /etc/s6-services/stoat-admin
 Create `.github/workflows/build.yml`. Trigger on push to `main` and on tags matching `v*`.
 
 Jobs:
+
 1. **build-api**: Check out the repo, set up Node 22, run `npm ci` and `npm run build` in `api/`, then build the Docker image and push to GHCR. Tag with both `latest` and the Git SHA (or Git tag if triggered by a tag push).
 2. **build-web**: Same pattern for `web/`. Pass `VITE_API_URL` as a build arg — for the CI-built image, use a placeholder value. Users will rebuild with their own URL or override at runtime.
 
@@ -728,6 +745,7 @@ Use `docker/login-action` for GHCR auth and `docker/build-push-action` for build
 Create `.github/workflows/ci.yml`. Trigger on pull requests and pushes to `main`.
 
 Jobs:
+
 1. **api-check**: Run `npm ci`, `npm run build` (TypeScript type checking), and `npx eslint .` in `api/`.
 2. **web-check**: Run `npm ci`, `npm run build`, and `npx eslint .` in `web/`.
 

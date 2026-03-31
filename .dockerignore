@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.turbo/
+.husky/_/
+*.db
+*.sqlite
+.env
+.env.local
+.env.production
+secrets.env
+data/
+.git/
+README.md
+compose*.yml
+test/
+tests/
+coverage/

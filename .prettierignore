@@ -1,0 +1,8 @@
+.git
+.turbo
+node_modules
+dist
+data
+*.db
+*.sqlite
+

@@ -1,0 +1,4 @@
+#!/bin/bash
+cd /srv/stoat
+podman compose down
+

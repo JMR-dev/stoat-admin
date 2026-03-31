@@ -49,10 +49,10 @@ A lightweight, self-hosted admin dashboard for managing user invites, bans, and 
 
 ### Services
 
-| Service      | Stack             | Port  | Access            |
-|--------------|-------------------|-------|-------------------|
-| `admin-web`  | Vite + React      | 5180  | WireGuard only    |
-| `admin-api`  | Express + Node 22 | 5181  | WireGuard only    |
+| Service     | Stack             | Port | Access         |
+| ----------- | ----------------- | ---- | -------------- |
+| `admin-web` | Vite + React      | 5180 | WireGuard only |
+| `admin-api` | Express + Node 22 | 5181 | WireGuard only |
 
 Both services run in their own Podman Compose stack but join the Stoat stack's Podman network (`stoat_default`) as an external network, giving them direct access to MongoDB and Redis. No new databases — `admin-api` connects to Stoat's existing MongoDB instance.
 
@@ -102,13 +102,16 @@ Stoat's account records. Relevant fields for admin operations:
 
 ```typescript
 type Account = {
-  _id: string;           // ULID, matches user._id
+  _id: string; // ULID, matches user._id
   email: string;
   email_normalised: string;
-  disabled: boolean;     // ← set true to ban at account level
+  disabled: boolean; // ← set true to ban at account level
   spam: boolean;
   verification: { status: "Verified" | "Pending" | "Moving" };
-  deletion?: { status: "Scheduled" | "WaitingForVerification" | "Deleted"; after?: string };
+  deletion?: {
+    status: "Scheduled" | "WaitingForVerification" | "Deleted";
+    after?: string;
+  };
   lockout?: { attempts: number; expiry: string };
 };
 ```
@@ -119,10 +122,10 @@ Stoat's user profiles. Relevant fields:
 
 ```typescript
 type User = {
-  _id: string;           // ULID
+  _id: string; // ULID
   username: string;
   discriminator: string;
-  flags?: number;        // bitmask: 1=suspended, 2=deleted, 4=banned
+  flags?: number; // bitmask: 1=suspended, 2=deleted, 4=banned
   // ... avatar, status, etc.
 };
 ```
@@ -144,7 +147,7 @@ Used when `invite_only = true` in `Revolt.toml`. Each document is an invite code
 
 ```typescript
 type Invite = {
-  _id: string;           // the invite code itself
+  _id: string; // the invite code itself
 };
 ```
 
@@ -154,7 +157,7 @@ Strike/suspension/ban audit records (from the official admin panel schema).
 
 ```typescript
 type Strike = {
-  _id: string;           // ULID
+  _id: string; // ULID
   user_id: string;
   reason: string;
   type?: "strike" | "suspension" | "ban";
@@ -217,19 +220,19 @@ All routes prefixed with `/api`. All require a valid session except `POST /api/a
 
 ### Auth
 
-| Method | Path              | Description                         |
-|--------|-------------------|-------------------------------------|
-| POST   | `/api/auth/login` | Login with username + password      |
-| POST   | `/api/auth/logout`| Destroy session                     |
-| GET    | `/api/auth/me`    | Return current session user or 401  |
+| Method | Path               | Description                        |
+| ------ | ------------------ | ---------------------------------- |
+| POST   | `/api/auth/login`  | Login with username + password     |
+| POST   | `/api/auth/logout` | Destroy session                    |
+| GET    | `/api/auth/me`     | Return current session user or 401 |
 
 ### Invites
 
-| Method | Path                   | Description                                                  |
-|--------|------------------------|--------------------------------------------------------------|
-| GET    | `/api/invites`         | List all invite records from SQLite (with status)            |
-| POST   | `/api/invites`         | Create invite: generate code → insert into Mongo + SQLite → send email via Resend |
-| DELETE | `/api/invites/:code`   | Revoke: delete from Mongo `revolt.invites`, set SQLite status to `revoked` |
+| Method | Path                 | Description                                                                       |
+| ------ | -------------------- | --------------------------------------------------------------------------------- |
+| GET    | `/api/invites`       | List all invite records from SQLite (with status)                                 |
+| POST   | `/api/invites`       | Create invite: generate code → insert into Mongo + SQLite → send email via Resend |
+| DELETE | `/api/invites/:code` | Revoke: delete from Mongo `revolt.invites`, set SQLite status to `revoked`        |
 
 #### Invite creation flow
 
@@ -258,13 +261,13 @@ For each SQLite record where status = 'pending':
 
 ### Users
 
-| Method | Path                         | Description                                       |
-|--------|------------------------------|---------------------------------------------------|
-| GET    | `/api/users`                 | List users from Mongo `revolt.users` (paginated)  |
-| GET    | `/api/users/:id`             | Get user + account details                        |
-| POST   | `/api/users/:id/ban`         | Ban user (see flow below)                         |
-| POST   | `/api/users/:id/unban`       | Reverse a ban                                     |
-| DELETE | `/api/users/:id`             | Delete user (see flow below)                      |
+| Method | Path                   | Description                                      |
+| ------ | ---------------------- | ------------------------------------------------ |
+| GET    | `/api/users`           | List users from Mongo `revolt.users` (paginated) |
+| GET    | `/api/users/:id`       | Get user + account details                       |
+| POST   | `/api/users/:id/ban`   | Ban user (see flow below)                        |
+| POST   | `/api/users/:id/unban` | Reverse a ban                                    |
+| DELETE | `/api/users/:id`       | Delete user (see flow below)                     |
 
 #### Ban flow
 
@@ -330,7 +333,7 @@ Verify the Stoat network name with `podman network ls` while Stoat is running, a
 networks:
   stoat:
     external: true
-    name: stoat_default  # must match the actual Stoat stack network name
+    name: stoat_default # must match the actual Stoat stack network name
 
 services:
   admin-api:
@@ -394,6 +397,7 @@ systemd
 ### s6 Service Directories
 
 **`/etc/s6-services/stoat/run`:**
+
 ```bash
 #!/bin/bash
 set -e
@@ -402,6 +406,7 @@ exec podman compose up 2>&1
 ```
 
 **`/etc/s6-services/stoat/finish`:**
+
 ```bash
 #!/bin/bash
 cd /srv/stoat
@@ -409,6 +414,7 @@ podman compose down
 ```
 
 **`/etc/s6-services/stoat-admin/run`:**
+
 ```bash
 #!/bin/bash
 set -e
@@ -427,6 +433,7 @@ exec podman compose up 2>&1
 The admin stack's `run` script checks for the Stoat network before starting. If the network doesn't exist yet (because the Stoat stack hasn't finished initializing), the script sleeps briefly and exits. s6 restarts it automatically, effectively retrying until the network appears. Combined with the MongoDB connection retry in the admin-api code, this handles all timing dependencies without explicit dependency declarations.
 
 **`/etc/s6-services/stoat-admin/finish`:**
+
 ```bash
 #!/bin/bash
 cd /srv/stoat-admin
@@ -436,12 +443,14 @@ podman compose down
 **Log service (same pattern for both stacks):**
 
 **`/etc/s6-services/stoat/log/run`:**
+
 ```bash
 #!/bin/bash
 exec s6-log -b -- T /var/log/s6/stoat/
 ```
 
 **`/etc/s6-services/stoat-admin/log/run`:**
+
 ```bash
 #!/bin/bash
 exec s6-log -b -- T /var/log/s6/stoat-admin/
@@ -454,6 +463,7 @@ The `T` directive prefixes each log line with a TAI64N timestamp. Logs are writt
 A single systemd unit runs the s6 scan directory. This is the only systemd unit needed for the entire chat infrastructure.
 
 **`/etc/systemd/system/s6-services.service`:**
+
 ```ini
 [Unit]
 Description=s6 service supervision tree
@@ -496,6 +506,7 @@ tail -f /var/log/s6/stoat-admin/current | s6-tai64nlocal
 ### Dockerfiles
 
 **admin-api:**
+
 ```dockerfile
 FROM node:22-slim
 WORKDIR /app
@@ -508,6 +519,7 @@ CMD ["node", "dist/index.js"]
 ```
 
 **admin-web:**
+
 ```dockerfile
 FROM node:22-slim AS build-app
 WORKDIR /app

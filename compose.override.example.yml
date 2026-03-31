@@ -1,0 +1,20 @@
+services:
+  admin-api:
+    ports:
+      - "10.0.0.1:5181:5181"
+    environment:
+      ADMIN_API_PORT: 5181
+      ADMIN_WEB_ORIGIN: http://10.0.0.1:5180
+
+  admin-web:
+    build:
+      args:
+        VITE_API_URL: http://10.0.0.1:5181
+    ports:
+      - "10.0.0.1:5180:80"
+
+# Common customizations:
+# - Change the external network name in compose.yml if your Stoat stack uses a different name.
+# - Bind to your WireGuard interface IP instead of localhost.
+# - Add resource limits or alternate image tags per deployment.
+
