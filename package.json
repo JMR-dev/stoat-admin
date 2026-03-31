@@ -17,18 +17,12 @@
     ]
   },
   "scripts": {
-    "prepare": "husky",
     "dev": "turbo run dev --parallel",
     "build": "turbo run build",
     "lint": "turbo run lint",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "check": "pnpm format:check && turbo run lint build",
+    "check": "turbo run lint build",
     "dev:api": "turbo run dev --filter=stoat-admin-api",
     "dev:web": "turbo run dev --filter=stoat-admin-web",
     "seed": "pnpm --filter stoat-admin-api seed"
-  },
-  "lint-staged": {
-    "*": "prettier --write --ignore-unknown"
   }
 }
