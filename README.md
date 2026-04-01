@@ -1,6 +1,6 @@
 # Stoat Admin
 
-Stoat Admin is a lightweight self-hosted moderation and invite dashboard for a Stoat chat instance. It runs as a separate Podman Compose stack, joins the Stoat network to talk to MongoDB directly, and is intended to be reachable only over WireGuard.
+Stoat Admin is a lightweight self-hosted moderation and invite dashboard for a Stoat chat instance. It runs as a separate Podman Compose stack, joins the Stoat network to talk to MongoDB directly, and now ships with a dedicated `admin-proxy` Caddy service that terminates HTTPS for the admin stack with Caddy's internal CA.
 
 ## Features
 
@@ -24,6 +24,12 @@ Stoat Admin is a lightweight self-hosted moderation and invite dashboard for a S
 └── .env.example
 ```
 
+## Admin Setup
+
+To create the admin user, run this command inside the admin container
+
+`node dist/seed.js --username admin --password <your-password>`
+
 ## Prerequisites
 
 - Node 22+
@@ -32,7 +38,8 @@ Stoat Admin is a lightweight self-hosted moderation and invite dashboard for a S
 - A Stoat deployment with MongoDB reachable on the shared container network
 - `invite_only = true` in Stoat's `Revolt.toml`
 - Podman or Docker-compatible compose support
-- WireGuard or another private network boundary for admin access
+- A hostname for the admin dashboard that resolves on your WireGuard/private network
+- A way to trust Caddy's internal root CA on the admin devices that will access the dashboard
 
 ## Quick Start
 
@@ -45,7 +52,7 @@ corepack enable
 2. Install dependencies:
 
 ```sh
-COREPACK_HOME=/tmp/corepack pnpm install
+pnpm install
 ```
 
 3. Copy the environment template and fill in the real values:
@@ -57,20 +64,20 @@ cp .env.example .env
 4. Seed the admin account from the root workspace:
 
 ```sh
-COREPACK_HOME=/tmp/corepack pnpm seed -- --username admin --password '<strong-password>'
+pnpm seed -- --username admin --password '<strong-password>'
 ```
 
 5. Run both packages together through Turborepo:
 
 ```sh
-COREPACK_HOME=/tmp/corepack pnpm dev
+pnpm dev
 ```
 
 Useful targeted variants:
 
 ```sh
-COREPACK_HOME=/tmp/corepack pnpm dev:api
-COREPACK_HOME=/tmp/corepack pnpm dev:web
+pnpm dev:api
+pnpm dev:web
 ```
 
 ## Configuration
@@ -84,14 +91,32 @@ COREPACK_HOME=/tmp/corepack pnpm dev:web
 | `INSTANCE_URL`      | Public Stoat URL used in invite links            |
 | `INSTANCE_NAME`     | Human-readable instance name used in copy        |
 | `ADMIN_API_PORT`    | Listen port for `admin-api`                      |
-| `ADMIN_WEB_ORIGIN`  | Exact browser origin allowed by CORS             |
-| `ADMIN_BIND_IP`     | Compose bind IP for admin services               |
-| `ADMIN_WEB_PORT`    | Host port for the frontend                       |
-| `ADMIN_WEB_API_URL` | API base URL baked into the frontend build       |
+| `ADMIN_WEB_ORIGIN`  | Exact HTTPS browser origin allowed by CORS       |
+| `ADMIN_HOSTNAME`    | Hostname served by the dedicated Caddy proxy     |
+| `ADMIN_BIND_IP`     | Compose bind IP for the proxy's `80`/`443` ports |
+| `ADMIN_HTTP_PORT`   | Host port for ACME HTTP and redirect handling    |
+| `ADMIN_HTTPS_PORT`  | Host port for HTTPS                              |
+| `ADMIN_WEB_API_URL` | Optional frontend API base URL override          |
 
 ## Deployment
 
 The repo ships with a standalone `compose.yml` that expects an external `stoat_default` network. Update the network name if your Stoat stack uses a different one.
+
+The deployment topology is:
+
+- `admin-proxy` publishes ports `80` and `443`, issues a private certificate from Caddy's internal CA, and reverse-proxies `/api/*` to `admin-api` and everything else to `admin-web`.
+- `admin-web` and `admin-api` are no longer published directly on the host.
+- `admin-api` stays attached to the shared Stoat network for MongoDB access and also joins a private admin network used by the proxy.
+
+Before starting the stack, point `ADMIN_HOSTNAME` at the host running `admin-proxy` on your WireGuard/private network and set `ADMIN_WEB_ORIGIN` to `https://<that-hostname>`.
+
+After the proxy has started once, install Caddy's root CA on each admin device before browsing to the dashboard. One way to export it is:
+
+```sh
+docker compose exec admin-proxy sh -c 'cat /data/caddy/pki/authorities/local/root.crt' > admin-proxy-root.crt
+```
+
+Then import `admin-proxy-root.crt` into the OS/browser trust store for the devices that should access the dashboard.
 
 For supervised deployments:
 
@@ -119,7 +144,7 @@ tail -f /var/log/s6/stoat-admin/current | s6-tai64nlocal
 ## Development Notes
 
 - The backend uses SQLite for admin credentials, audit logs, and invite metadata, and MongoDB for Stoat state.
-- The frontend talks directly to the API with cookie-based auth and TanStack Query.
+- In the composed deployment, the frontend uses same-origin `/api` requests through `admin-proxy`, while local development can still override `VITE_API_URL`.
 - Root task orchestration is handled by Turborepo through [turbo.json](/home/jasonross/workspace/stoat-admin/turbo.json).
 - The current repo state is a first implementation slice based on the design docs in [docs/stoat-admin-design.md](/home/jasonross/workspace/stoat-admin/docs/stoat-admin-design.md) and [docs/stoat-admin-tasks.md](/home/jasonross/workspace/stoat-admin/docs/stoat-admin-tasks.md).
 

@@ -32,7 +32,11 @@ async function promptForMissing(
 }
 
 async function main(): Promise<void> {
+  const rawArgs = process.argv.slice(2);
+  const normalizedArgs = rawArgs[0] === "--" ? rawArgs.slice(1) : rawArgs;
+
   const parsed = parseArgs({
+    args: normalizedArgs,
     options: {
       username: {
         type: "string"

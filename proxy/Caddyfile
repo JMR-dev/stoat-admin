@@ -1,0 +1,14 @@
+{$ADMIN_HOSTNAME} {
+	tls internal
+
+	encode zstd gzip
+
+	@api path /api/*
+	handle @api {
+		reverse_proxy admin-api:5181
+	}
+
+	handle {
+		reverse_proxy admin-web:80
+	}
+}

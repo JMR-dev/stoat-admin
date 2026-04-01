@@ -7,6 +7,14 @@ import { sqlite } from "../db/sqlite.js";
 
 const SQLiteStore = connectSqlite3(session);
 export const SESSION_COOKIE_NAME = "stoat-admin.sid";
+const SESSION_COOKIE_SECURE =
+  new URL(env.ADMIN_WEB_ORIGIN).protocol === "https:";
+export const SESSION_COOKIE_OPTIONS = {
+  path: "/",
+  httpOnly: true,
+  sameSite: "strict",
+  secure: SESSION_COOKIE_SECURE
+} as const;
 
 export const sessionMiddleware = session({
   name: SESSION_COOKIE_NAME,
@@ -21,10 +29,8 @@ export const sessionMiddleware = session({
     }
   }),
   cookie: {
-    maxAge: 2 * 60 * 60 * 1000,
-    httpOnly: true,
-    sameSite: "strict",
-    secure: false
+    ...SESSION_COOKIE_OPTIONS,
+    maxAge: 2 * 60 * 60 * 1000
   }
 });
 

@@ -1,16 +1,27 @@
 import { existsSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import Database from "better-sqlite3";
 
 import type { AdminUserRecord, InviteRecord } from "./types.js";
+
+// Keep local development aligned with the compose-mounted ./data directory.
+const workspaceSqlitePath = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+  "data",
+  "admin.db"
+);
 
 function resolveSqlitePath(): string {
   if (existsSync("/data")) {
     return "/data/admin.db";
   }
 
-  return resolve(process.cwd(), "data", "admin.db");
+  return workspaceSqlitePath;
 }
 
 export const sqlitePath = resolveSqlitePath();

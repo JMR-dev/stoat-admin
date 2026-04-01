@@ -1,20 +1,18 @@
 services:
-  admin-api:
+  admin-proxy:
     ports:
-      - "10.0.0.1:5181:5181"
+      - "10.0.0.1:80:80"
+      - "10.0.0.1:443:443"
+    environment:
+      ADMIN_HOSTNAME: admin.example.com
+
+  admin-api:
     environment:
       ADMIN_API_PORT: 5181
-      ADMIN_WEB_ORIGIN: http://10.0.0.1:5180
-
-  admin-web:
-    build:
-      args:
-        VITE_API_URL: http://10.0.0.1:5181
-    ports:
-      - "10.0.0.1:5180:80"
+      ADMIN_WEB_ORIGIN: https://admin.example.com
 
 # Common customizations:
 # - Change the external network name in compose.yml if your Stoat stack uses a different name.
-# - Bind to your WireGuard interface IP instead of localhost.
+# - Bind admin-proxy to the interface IP that should answer ports 80/443.
+# - Ensure ADMIN_HOSTNAME resolves to that IP on your WireGuard/private network.
 # - Add resource limits or alternate image tags per deployment.
-

@@ -4,7 +4,11 @@ import { z } from "zod";
 
 import { statements } from "../db/sqlite.js";
 import { asyncHandler } from "../lib/async-handler.js";
-import { requireAuth, SESSION_COOKIE_NAME } from "../middleware/auth.js";
+import {
+  requireAuth,
+  SESSION_COOKIE_NAME,
+  SESSION_COOKIE_OPTIONS
+} from "../middleware/auth.js";
 
 const loginSchema = z.object({
   username: z.string().min(1),
@@ -56,7 +60,7 @@ authRouter.post(
       });
     });
 
-    res.clearCookie(SESSION_COOKIE_NAME);
+    res.clearCookie(SESSION_COOKIE_NAME, SESSION_COOKIE_OPTIONS);
     res.status(200).json({ success: true });
   })
 );

@@ -20,6 +20,7 @@ async function main(): Promise<void> {
   await connectMongo();
 
   const app = express();
+  app.set("trust proxy", 1);
 
   app.use(
     helmet({

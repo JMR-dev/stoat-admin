@@ -2,13 +2,15 @@
 
 ## Security Model
 
-Stoat Admin is designed for private administration over a WireGuard-restricted network. The intended deployment model is:
+Stoat Admin is designed to keep the application containers private even when the admin entrypoint is fronted by its own HTTPS proxy. The intended deployment model is:
 
-- `admin-web` and `admin-api` bind only to a private interface such as `wg0`
+- `admin-proxy` is the only published service and terminates HTTPS for the admin stack with Caddy's internal CA
+- `admin-web` and `admin-api` are reachable only on the private admin container network
+- `admin-api` joins the Stoat network only so it can reach MongoDB
 - the dashboard is not exposed through the public Stoat reverse proxy
 - the API still requires session-based authentication with an Argon2id-hashed admin credential
 
-This means WireGuard limits network access and the application session limits user access. Both layers are expected in production.
+This means the reverse proxy limits what is exposed, the shared Stoat network is used only where needed, and the application session still limits user access.
 
 ## Reporting
 
@@ -24,4 +26,6 @@ If you discover a security issue, avoid opening a public issue with exploit deta
 - Keep `SESSION_SECRET` and `RESEND_API_KEY` out of the repository.
 - Restrict permissions on the SQLite database file mounted at `/data/admin.db`.
 - Set `ADMIN_WEB_ORIGIN` precisely. Do not use `*`.
-- Verify the compose port bindings are limited to the intended private interface.
+- Verify the compose port bindings expose only `admin-proxy`, not `admin-web` or `admin-api`.
+- Trust Caddy's internal root CA only on the admin devices that should access the dashboard.
+- Protect the `admin_proxy_data` volume. It contains the private CA material used to issue the dashboard certificate.
