@@ -11,10 +11,9 @@ services:
     restart: unless-stopped
     ports:
       - "${ADMIN_BIND_IP:-127.0.0.1}:${ADMIN_API_PORT:-5181}:5181"
-    env_file:
-      - .env
     volumes:
       - ./data:/data
+      - ./.env:/app/.env:ro
     networks:
       - stoat
 

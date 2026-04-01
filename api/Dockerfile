@@ -1,4 +1,4 @@
-FROM node:22-slim AS build
+FROM node:24-slim AS build
 WORKDIR /app
 COPY package.json ./
 RUN corepack enable && pnpm install --frozen-lockfile=false
@@ -6,7 +6,7 @@ COPY tsconfig.json ./
 COPY src/ ./src/
 RUN pnpm build
 
-FROM node:22-slim
+FROM node:24-slim
 WORKDIR /app
 COPY package.json ./
 RUN corepack enable && pnpm install --prod --frozen-lockfile=false

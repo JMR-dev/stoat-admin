@@ -1,4 +1,4 @@
-FROM node:22-slim AS build-app
+FROM node:24-slim AS build-app
 WORKDIR /app
 COPY package.json ./
 RUN corepack enable && pnpm install --frozen-lockfile=false
