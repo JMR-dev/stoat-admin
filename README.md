@@ -16,7 +16,8 @@ Stoat Admin is a lightweight self-hosted moderation and invite dashboard for a S
 ```text
 .
 ├── api/                  # Express + TypeScript backend
-├── web/                  # Vite + React + TypeScript frontend
+├── proxy/                # Caddy + Coraza reverse proxy image
+├── web/                  # Vite + React frontend and static image build
 ├── deploy/s6/            # Example s6 service directories and systemd unit
 ├── compose.yml           # Production-oriented compose file
 ├── compose.override.example.yml
@@ -93,19 +94,22 @@ pnpm dev:web
 | `ADMIN_API_PORT`    | Listen port for `admin-api`                      |
 | `ADMIN_WEB_ORIGIN`  | Exact HTTPS browser origin allowed by CORS       |
 | `ADMIN_HOSTNAME`    | Hostname served by the dedicated Caddy proxy     |
-| `ADMIN_BIND_IP`     | Compose bind IP for the proxy's `80`/`443` ports |
-| `ADMIN_HTTP_PORT`   | Host port for ACME HTTP and redirect handling    |
-| `ADMIN_HTTPS_PORT`  | Host port for HTTPS                              |
-| `ADMIN_WEB_API_URL` | Optional frontend API base URL override          |
+| `ADMIN_BIND_IP`     | Compose bind IP for the proxy's published ports  |
+| `ADMIN_HTTP_PORT`   | Published HTTP port for redirect handling        |
+| `ADMIN_HTTPS_PORT`  | Published HTTPS port for the admin dashboard     |
+| `ADMIN_WEB_API_URL` | Optional frontend API override outside compose   |
 
 ## Deployment
 
 The repo ships with a standalone `compose.yml` that expects an external `stoat_default` network. Update the network name if your Stoat stack uses a different one.
 
+For local compose use, the proxy defaults to `https://localhost:9443` and `http://localhost:9080`. For deployed hosts, set `ADMIN_HOSTNAME` to the real admin name and switch `ADMIN_HTTP_PORT`/`ADMIN_HTTPS_PORT` to `80`/`443` or use [compose.override.example.yml](/home/jasonross/workspace/stoat-admin/compose.override.example.yml) as a starting point.
+
 The deployment topology is:
 
-- `admin-proxy` publishes ports `80` and `443`, issues a private certificate from Caddy's internal CA, and reverse-proxies `/api/*` to `admin-api` and everything else to `admin-web`.
+- `admin-proxy` is built from [proxy/Dockerfile](/home/jasonross/workspace/stoat-admin/proxy/Dockerfile), publishes the configured HTTP and HTTPS ports, issues a private certificate from Caddy's internal CA, applies Coraza, and reverse-proxies `/api/*` to `admin-api` and everything else to `admin-web`.
 - `admin-web` and `admin-api` are no longer published directly on the host.
+- `admin-web` serves the built Vite bundle privately on the admin network.
 - `admin-api` stays attached to the shared Stoat network for MongoDB access and also joins a private admin network used by the proxy.
 
 Before starting the stack, point `ADMIN_HOSTNAME` at the host running `admin-proxy` on your WireGuard/private network and set `ADMIN_WEB_ORIGIN` to `https://<that-hostname>`.
@@ -144,7 +148,7 @@ tail -f /var/log/s6/stoat-admin/current | s6-tai64nlocal
 ## Development Notes
 
 - The backend uses SQLite for admin credentials, audit logs, and invite metadata, and MongoDB for Stoat state.
-- In the composed deployment, the frontend uses same-origin `/api` requests through `admin-proxy`, while local development can still override `VITE_API_URL`.
+- In the composed deployment, the frontend always uses same-origin `/api` requests through `admin-proxy`; `VITE_API_URL` is only useful outside compose.
 - Root task orchestration is handled by Turborepo through [turbo.json](/home/jasonross/workspace/stoat-admin/turbo.json).
 - The current repo state is a first implementation slice based on the design docs in [docs/stoat-admin-design.md](/home/jasonross/workspace/stoat-admin/docs/stoat-admin-design.md) and [docs/stoat-admin-tasks.md](/home/jasonross/workspace/stoat-admin/docs/stoat-admin-tasks.md).
 

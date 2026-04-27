@@ -1,10 +1,12 @@
 services:
   admin-proxy:
+    environment:
+      ADMIN_HOSTNAME: admin.example.com
+      ADMIN_HTTP_PORT: 80
+      ADMIN_HTTPS_PORT: 443
     ports:
       - "10.0.0.1:80:80"
       - "10.0.0.1:443:443"
-    environment:
-      ADMIN_HOSTNAME: admin.example.com
 
   admin-api:
     environment:
@@ -14,5 +16,6 @@ services:
 # Common customizations:
 # - Change the external network name in compose.yml if your Stoat stack uses a different name.
 # - Bind admin-proxy to the interface IP that should answer ports 80/443.
+# - Use ADMIN_HTTP_PORT/ADMIN_HTTPS_PORT=9080/9443 for local compose HTTPS without privileged ports.
 # - Ensure ADMIN_HOSTNAME resolves to that IP on your WireGuard/private network.
 # - Add resource limits or alternate image tags per deployment.

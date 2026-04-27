@@ -1,14 +1,28 @@
-{$ADMIN_HOSTNAME} {
+{
+	http_port {$ADMIN_HTTP_PORT:9080}
+	https_port {$ADMIN_HTTPS_PORT:9443}
+	order coraza_waf first
+}
+
+{$ADMIN_HOSTNAME:localhost} {
 	tls internal
 
 	encode zstd gzip
 
+	coraza_waf {
+		load_owasp_crs
+		directives `
+			Include /etc/caddy/coraza.conf
+			SecRuleEngine On
+		`
+	}
+
 	@api path /api/*
 	handle @api {
-		reverse_proxy admin-api:5181
+		reverse_proxy admin-api:{$ADMIN_API_PORT:5181}
 	}
 
 	handle {
-		reverse_proxy admin-web:80
+		reverse_proxy admin-web:80 admin-web:443 admin-web:9080 admin-web:9443
 	}
 }

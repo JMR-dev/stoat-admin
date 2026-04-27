@@ -15,7 +15,7 @@ services:
     image: ghcr.io/owner/stoat-admin-api:latest
     restart: unless-stopped
     expose:
-      - "5181"
+      - "${ADMIN_API_PORT:-5181}"
     volumes:
       - ./data:/data
       - ./.env:/app/.env:ro
@@ -26,8 +26,6 @@ services:
   admin-web:
     build:
       context: ./web
-      args:
-        VITE_API_URL: ${ADMIN_WEB_API_URL:-}
     image: ghcr.io/owner/stoat-admin-web:latest
     restart: unless-stopped
     expose:
@@ -36,18 +34,22 @@ services:
       - admin
 
   admin-proxy:
-    image: caddy:latest
+    build:
+      context: ./proxy
+    image: ghcr.io/owner/stoat-admin-proxy:latest
     restart: unless-stopped
     depends_on:
       - admin-api
       - admin-web
     environment:
-      ADMIN_HOSTNAME: ${ADMIN_HOSTNAME}
+      ADMIN_API_PORT: ${ADMIN_API_PORT:-5181}
+      ADMIN_HOSTNAME: ${ADMIN_HOSTNAME:-localhost}
+      ADMIN_HTTP_PORT: ${ADMIN_HTTP_PORT:-9080}
+      ADMIN_HTTPS_PORT: ${ADMIN_HTTPS_PORT:-9443}
     ports:
-      - "${ADMIN_BIND_IP:-127.0.0.1}:${ADMIN_HTTP_PORT:-80}:80"
-      - "${ADMIN_BIND_IP:-127.0.0.1}:${ADMIN_HTTPS_PORT:-443}:443"
+      - "${ADMIN_BIND_IP:-127.0.0.1}:${ADMIN_HTTP_PORT:-9080}:${ADMIN_HTTP_PORT:-9080}"
+      - "${ADMIN_BIND_IP:-127.0.0.1}:${ADMIN_HTTPS_PORT:-9443}:${ADMIN_HTTPS_PORT:-9443}"
     volumes:
-      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
       - admin_proxy_data:/data
       - admin_proxy_config:/config
     networks:
