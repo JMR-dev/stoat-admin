@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.turbo/
+.env
+.env.*
+secrets.env
+*.db
+*.db-*
+*.sqlite
+*.sqlite*
+data/
+coverage/
+.DS_Store

@@ -1,0 +1,5 @@
+#!/bin/bash
+set -e
+cd /srv/stoat
+exec podman compose up 2>&1
+

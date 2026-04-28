@@ -1,0 +1,153 @@
+---
+- name: WireGuard Host Setup
+  hosts: admin_host
+  become: true
+  tasks:
+    - name: Ensure wireguard and tools are installed
+      ansible.builtin.package:
+        name:
+          - wireguard-tools
+          - firewalld
+        state: present
+
+    - name: Ensure firewalld is running and enabled
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: true
+
+    - name: Open WG UDP port on public zone
+      ansible.posix.firewalld:
+        zone: public
+        port: "{{ wg_listen_port }}/udp"
+        permanent: true
+        state: enabled
+      notify: Reload firewalld
+
+    - name: Check if WG server private key exists in Secret Manager
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: >
+        gcloud secrets versions access latest --secret=admin-wg-server-key --project={{ lookup('env', 'GCP_PROJECT_ID') }}
+      register: wg_sm_check
+      failed_when: false
+      changed_when: false
+
+    - name: Generate WG server private key locally if not in Secret Manager
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: wg genkey
+      register: wg_local_gen
+      when: wg_sm_check.rc != 0
+      changed_when: true
+
+    - name: Create Secret in Secret Manager if missing
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: >
+        gcloud secrets create admin-wg-server-key --project={{ lookup('env', 'GCP_PROJECT_ID') }} --replication-policy="automatic"
+      when: wg_sm_check.rc != 0
+      failed_when: false
+      changed_when: false
+
+    - name: Push new WG server private key to Secret Manager
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: >
+        gcloud secrets versions add admin-wg-server-key
+        --data-file=-
+        --project={{ lookup('env', 'GCP_PROJECT_ID') }}
+      args:
+        stdin: "{{ wg_local_gen.stdout }}"
+      when: wg_sm_check.rc != 0
+
+    - name: Set server private key variable
+      ansible.builtin.set_fact:
+        wg_server_private_key: "{{ wg_sm_check.stdout if wg_sm_check.rc == 0 else wg_local_gen.stdout }}"
+      no_log: true
+
+    - name: Generate server public key
+      delegate_to: localhost
+      become: false
+      ansible.builtin.command: wg pubkey
+      args:
+        stdin: "{{ wg_server_private_key }}"
+      register: wg_server_pub_gen
+      changed_when: false
+
+    - name: Set server public key variable
+      ansible.builtin.set_fact:
+        wg_server_public_key: "{{ wg_server_pub_gen.stdout }}"
+
+    - name: Ensure /etc/wireguard directory exists
+      ansible.builtin.file:
+        path: /etc/wireguard
+        state: directory
+        mode: "0700"
+
+    - name: Generate client keys
+      delegate_to: localhost
+      become: false
+      ansible.builtin.shell: |
+        priv=$(wg genkey)
+        pub=$(echo "$priv" | wg pubkey)
+        psk=$(wg genpsk)
+        echo '{"private_key": "'$priv'", "public_key": "'$pub'", "psk": "'$psk'"}'
+      register: wg_client_keys_gen
+      with_items: "{{ wg_clients }}"
+      changed_when: true
+      no_log: true
+
+    - name: Enrich wg_clients with keys
+      ansible.builtin.set_fact:
+        wg_clients_enriched: >-
+          {{
+            wg_clients_enriched | default([]) +
+            [item.0 | combine(item.1.stdout | from_json)]
+          }}
+      loop: "{{ wg_clients | zip(wg_client_keys_gen.results) | list }}"
+      no_log: true
+
+    - name: Render server wg0.conf
+      ansible.builtin.template:
+        src: templates/wg0.conf.j2
+        dest: /etc/wireguard/wg0.conf
+        mode: "0600"
+      notify: Restart wg-quick
+
+    - name: Enable and start wg-quick@wg0
+      ansible.builtin.systemd:
+        name: wg-quick@wg0
+        state: started
+        enabled: true
+
+    - name: Ensure client config directory exists on control machine
+      delegate_to: localhost
+      become: false
+      ansible.builtin.file:
+        path: "{{ playbook_dir }}/../generated/clients"
+        state: directory
+        mode: "0700"
+
+    - name: Render client configs on control machine
+      delegate_to: localhost
+      become: false
+      ansible.builtin.template:
+        src: templates/client.conf.j2
+        dest: "{{ playbook_dir }}/../generated/clients/{{ item.name }}.conf"
+        mode: "0600"
+      loop: "{{ wg_clients_enriched }}"
+      vars:
+        client: "{{ item }}"
+      no_log: true
+
+  handlers:
+    - name: Reload firewalld
+      ansible.builtin.systemd:
+        name: firewalld
+        state: reloaded
+
+    - name: Restart wg-quick
+      ansible.builtin.systemd:
+        name: wg-quick@wg0
+        state: restarted

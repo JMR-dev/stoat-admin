@@ -1,0 +1,29 @@
+{
+  "name": "stoat-admin",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.6.3",
+  "license": "AGPL-3.0-only",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
+    "prettier": "^3.8.1",
+    "turbo": "^2.5.4"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "argon2",
+      "better-sqlite3",
+      "esbuild"
+    ]
+  },
+  "scripts": {
+    "dev": "turbo run dev --parallel",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "check": "turbo run lint build",
+    "dev:api": "turbo run dev --filter=stoat-admin-api",
+    "dev:web": "turbo run dev --filter=stoat-admin-web",
+    "seed": "pnpm --filter stoat-admin-api seed"
+  }
+}

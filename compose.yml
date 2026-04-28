@@ -1,0 +1,56 @@
+volumes:
+  admin_proxy_data:
+  admin_proxy_config:
+
+networks:
+  stoat:
+    external: true
+    name: stoat_default
+  admin:
+
+services:
+  admin-api:
+    build:
+      context: ./api
+    image: ghcr.io/owner/stoat-admin-api:latest
+    restart: unless-stopped
+    expose:
+      - "${ADMIN_API_PORT:-5181}"
+    volumes:
+      - ./data:/data
+      - ./.env:/app/.env:ro
+    networks:
+      - admin
+      - stoat
+
+  admin-web:
+    build:
+      context: ./web
+    image: ghcr.io/owner/stoat-admin-web:latest
+    restart: unless-stopped
+    expose:
+      - "80"
+    networks:
+      - admin
+
+  admin-proxy:
+    build:
+      context: ./proxy
+    image: ghcr.io/owner/stoat-admin-proxy:latest
+    restart: unless-stopped
+    depends_on:
+      - admin-api
+      - admin-web
+    environment:
+      ADMIN_API_PORT: ${ADMIN_API_PORT:-5181}
+      ADMIN_HOSTNAME: ${ADMIN_HOSTNAME:-localhost}
+      ADMIN_HTTP_PORT: ${ADMIN_HTTP_PORT:-9080}
+      ADMIN_HTTPS_PORT: ${ADMIN_HTTPS_PORT:-9443}
+    ports:
+      - "${ADMIN_BIND_IP:-127.0.0.1}:${ADMIN_HTTP_PORT:-9080}:${ADMIN_HTTP_PORT:-9080}"
+      - "${ADMIN_BIND_IP:-127.0.0.1}:${ADMIN_HTTPS_PORT:-9443}:${ADMIN_HTTPS_PORT:-9443}"
+    volumes:
+      - admin_proxy_data:/data
+      - admin_proxy_config:/config
+    networks:
+      - admin

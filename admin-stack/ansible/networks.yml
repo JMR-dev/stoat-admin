@@ -1,0 +1,25 @@
+---
+- name: Podman Networks Setup
+  hosts: admin_host
+  become: true
+  become_user: "{{ podman_user }}"
+  tasks:
+    - name: Verify linger is enabled
+      ansible.builtin.command: loginctl show-user {{ podman_user }}
+      register: linger_check
+      changed_when: false
+      failed_when: "'Linger=yes' not in linger_check.stdout"
+
+    - name: Admin edge network
+      containers.podman.podman_network:
+        name: admin-edge
+        driver: bridge
+        subnet: 10.89.20.0/24
+        internal: false
+        state: present
+
+    - name: Assert stoat-shared exists (Stoat's Ansible owns it)
+      ansible.builtin.command: podman network inspect stoat-shared
+      register: shared_check
+      changed_when: false
+      failed_when: shared_check.rc != 0

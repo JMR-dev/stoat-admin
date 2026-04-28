@@ -1,0 +1,20 @@
+{
+    email {$ACME_EMAIL}
+}
+
+admin.{$DOMAIN} {
+    tls {
+        dns googleclouddns {
+            gcp_project {$GCP_PROJECT_ID}
+            gcp_application_default /etc/caddy/credentials/sa.json
+        }
+    }
+
+    handle /api/* {
+        reverse_proxy admin-api:3000
+    }
+
+    handle {
+        reverse_proxy admin-frontend:3000
+    }
+}

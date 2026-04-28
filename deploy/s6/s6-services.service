@@ -1,0 +1,15 @@
+[Unit]
+Description=s6 service supervision tree
+After=network-online.target podman.socket
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/s6-svscan /etc/s6-services
+ExecStop=/usr/bin/s6-svscanctl -t /etc/s6-services
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
