@@ -1,0 +1,17 @@
+all:
+  children:
+    admin_host:
+      hosts:
+        localhost:
+          ansible_connection: local
+      vars:
+        host_public_ip: "192.0.2.1"
+        wg_subnet: "10.42.0.0/24"
+        wg_server_ip: "10.42.0.1"
+        wg_listen_port: 51820
+        wg_clients:
+          - name: jason-laptop
+            ip: "10.42.0.10"
+          - name: jason-phone
+            ip: "10.42.0.11"
+        podman_user: "stoat"

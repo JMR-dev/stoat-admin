@@ -1,0 +1,59 @@
+networks:
+  admin-edge:
+    external: true
+  stoat-shared:
+    external: true
+
+volumes:
+  admin-sqlite:
+  caddy-data:
+  caddy-config:
+
+services:
+  caddy:
+    build: ./caddy
+    ports:
+      - "${WG_SERVER_IP}:80:80"
+      - "${WG_SERVER_IP}:443:443"
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+      - ./secrets/caddy-dns-sa.json:/etc/caddy/credentials/sa.json:ro
+    environment:
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID}
+      ACME_EMAIL: ${ACME_EMAIL}
+      DOMAIN: ${DOMAIN}
+    networks:
+      - admin-edge
+    restart: unless-stopped
+
+  admin-frontend:
+    image: ${ADMIN_FRONTEND_IMAGE}
+    environment:
+      - API_URL=http://admin-api:3000
+    networks:
+      - admin-edge
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  admin-api:
+    image: ${ADMIN_API_IMAGE}
+    volumes:
+      - admin-sqlite:/data/db
+    environment:
+      - SQLITE_DB_PATH=/data/db/admin.db
+      - MONGO_URL=mongodb://admin_stack_ro:${ADMIN_STACK_DB_PASSWORD}@mongodb:27017/revolt
+      - SESSION_SECRET=${SESSION_SECRET}
+    networks:
+      - admin-edge
+      - stoat-shared
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

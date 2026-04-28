@@ -1,0 +1,13 @@
+[Interface]
+PrivateKey = {{ wg_server_private_key }}
+Address = {{ wg_server_ip }}/24
+ListenPort = {{ wg_listen_port }}
+SaveConfig = false
+
+{% for client in wg_clients_enriched %}
+[Peer]
+# {{ client.name }}
+PublicKey = {{ client.public_key }}
+PresharedKey = {{ client.psk }}
+AllowedIPs = {{ client.ip }}/32
+{% endfor %}
