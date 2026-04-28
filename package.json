@@ -11,6 +11,9 @@
     "turbo": "^2.5.4"
   },
   "pnpm": {
+    "overrides": {
+      "uuid": ">=14.0.0"
+    },
     "onlyBuiltDependencies": [
       "argon2",
       "better-sqlite3",
