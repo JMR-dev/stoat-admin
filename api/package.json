@@ -5,13 +5,6 @@
   "type": "module",
   "license": "AGPL-3.0-only",
   "packageManager": "pnpm@10.6.3",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "argon2",
-      "better-sqlite3",
-      "esbuild"
-    ]
-  },
   "engines": {
     "node": ">=22"
   },
@@ -36,7 +29,7 @@
     "mongodb": "^7.1.1",
     "nanoid": "^5.1.5",
     "node-cron": "^4.0.7",
-    "resend": "^6.10.0",
+    "resend": "^6.12.2",
     "ulid": "^3.0.2",
     "zod": "^4.3.6"
   },
@@ -48,11 +41,11 @@
     "@types/express-session": "^1.18.1",
     "@types/node": "24.12.0",
     "@types/node-cron": "^3.0.11",
+    "@typescript-eslint/eslint-plugin": "^8.18.2",
+    "@typescript-eslint/parser": "^8.18.2",
     "eslint": "^10.1.0",
     "globals": "^17.4.0",
     "tsx": "^4.19.2",
-    "typescript": "^6.0.2",
-    "@typescript-eslint/eslint-plugin": "^8.18.2",
-    "@typescript-eslint/parser": "^8.18.2"
+    "typescript": "^6.0.2"
   }
 }
